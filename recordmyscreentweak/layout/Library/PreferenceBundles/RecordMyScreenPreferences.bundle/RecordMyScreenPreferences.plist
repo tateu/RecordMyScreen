@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Please select an activation method to start/stop recording.</string>
+		</dict>
+		<dict>
+			<key>activatorListener</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>activatorTitle</key>
+			<string>RecordMyScreen</string>
+			<key>bundle</key>
+			<string>LibActivator</string>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>isController</key>
+			<true/>
+			<key>label</key>
+			<string>Activation Methods</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>manage:</string>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>label</key>
+			<string>Manage Recordings</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Video Settings</string>
+			<key>footerText</key>
+			<string>You should respring after changing "Video Mod16 Method" otherwise, your device might crash to SafeMode.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>vidformat</string>
+			<key>label</key>
+			<string>Video Format</string>
+			<key>validTitles</key>
+			<array>
+				<string>h264 mov</string>
+				<string>h264 mp4</string>
+				<string>mjpeg mov</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>1</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>vidsize</string>
+			<key>label</key>
+			<string>Video Size</string>
+			<key>validTitles</key>
+			<array>
+				<string>Native</string>
+				<string>75%</string>
+				<string>Half</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>0</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>vidorientation</string>
+			<key>label</key>
+			<string>Video Orientation</string>
+			<key>validTitles</key>
+			<array>
+				<string>Portrait</string>
+				<string>Landscape (Home Button To Left)</string>
+				<string>Landscape (Home Button To Right)</string>
+				<string>Portrait (Upside Down)</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>90</integer>
+				<integer>270</integer>
+				<integer>180</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>24</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>fps</string>
+			<key>label</key>
+			<string>FrameRate</string>
+			<key>validTitles</key>
+			<array>
+				<string>60 fps</string>
+				<string>50 fps</string>
+				<string>48 fps</string>
+				<string>30 fps</string>
+				<string>25 fps</string>
+				<string>24 fps</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>60</integer>
+				<integer>50</integer>
+				<integer>48</integer>
+				<integer>30</integer>
+				<integer>25</integer>
+				<integer>24</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>5000</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>bitrate</string>
+			<key>label</key>
+			<string>Bitrate</string>
+			<key>validTitles</key>
+			<array>
+				<string>20000 kb/s</string>
+				<string>15000 kb/s</string>
+				<string>10000 kb/s</string>
+				<string>7500 kb/s</string>
+				<string>5000 kb/s</string>
+				<string>2500 kb/s</string>
+				<string>1250 kb/s</string>
+				<string>750 kb/s</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>20000</integer>
+				<integer>15000</integer>
+				<integer>10000</integer>
+				<integer>7500</integer>
+				<integer>5000</integer>
+				<integer>2500</integer>
+				<integer>1250</integer>
+				<integer>750</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>h264ProfileAndLevel</string>
+			<key>label</key>
+			<string>h264 Profile And Level</string>
+			<key>validTitles</key>
+			<array>
+				<string>Main4.1</string>
+				<string>Main3.1</string>
+				<string>Baseline4.1</string>
+				<string>Baseline3.1</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Audio Settings</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>key</key>
+			<string>recordaudio</string>
+			<key>label</key>
+			<string>Record Audio</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>96000</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>audioBitRate</string>
+			<key>label</key>
+			<string>AAC Bit Rate</string>
+			<key>validTitles</key>
+			<array>
+				<string>128 kb/s</string>
+				<string>96 kb/s</string>
+				<string>64 kb/s</string>
+				<string>32 kb/s</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>128000</integer>
+				<integer>96000</integer>
+				<integer>64000</integer>
+				<integer>32000</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>44100</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>samplerate</string>
+			<key>label</key>
+			<string>Sample Rate</string>
+			<key>validTitles</key>
+			<array>
+				<string>44100 Hz</string>
+				<string>22050 Hz</string>
+				<string>16000 Hz</string>
+				<string>11025 Hz</string>
+				<string>8000 Hz</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>44100</integer>
+				<integer>22050</integer>
+				<integer>16000</integer>
+				<integer>11025</integer>
+				<integer>8000</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>1</integer>
+			<key>defaults</key>
+			<string>org.coolstar.recordmyscreen</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>channels</string>
+			<key>label</key>
+			<string>Channels</string>
+			<key>validTitles</key>
+			<array>
+				<string>Mono</string>
+				<string>Stereo</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>1</integer>
+				<integer>2</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>RecordMyScreen 3.1-5~beta5</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>credits:</string>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>label</key>
+			<string>Credits</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>RecordMyScreen</string>
+</dict>
+</plist>

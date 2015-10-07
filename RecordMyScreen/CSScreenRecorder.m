@@ -7,7 +7,7 @@
 //
 
 #import "CSScreenRecorder.h"
-
+#import <Foundation/NSDistributedNotificationCenter.h>
 #import <IOMobileFrameBuffer.h>
 #import <CoreVideo/CVPixelBuffer.h>
 #import <QuartzCore/QuartzCore.h>
@@ -15,7 +15,42 @@
 #include <IOSurface.h>
 #include <sys/time.h>
 
+#define NSLog(fmt, ...)
+
 void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef surface, int x, int y);
+
+CGFloat degreesToRadians (CGFloat deg)
+{
+	return deg * (M_PI / 180.0f);
+}
+
+int roundDownToMultiple(int numberToRound, int multiple)
+{
+	if (multiple == 0)
+		return numberToRound;
+
+	int remainder = abs(numberToRound) % multiple;
+	if (remainder == 0)
+		return numberToRound;
+
+	if (numberToRound < 0)
+		return -(abs(numberToRound) + remainder);
+
+	return numberToRound - remainder;
+}
+
+int roundUpToMultiple(int numberToRound, int multiple)
+{
+	if (multiple == 0)
+		return numberToRound;
+
+	int remainder = abs(numberToRound) % multiple;
+	if (remainder == 0)
+		return numberToRound;
+	if (numberToRound < 0)
+		return -(abs(numberToRound) - remainder);
+	return numberToRound + multiple - remainder;
+}
 
 @interface CSScreenRecorder ()
 {
@@ -23,6 +58,8 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 	BOOL				_isRecording;
 	int				 _kbps;
 	int				 _fps;
+
+	NSDictionary		*settings;
 
 	//surface
 	IOSurfaceRef		_surface;
@@ -66,14 +103,21 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 		_fps = 24;
 		//encoding kbps
 		_kbps = 5000;
+
+		settings = [[[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/org.coolstar.recordmyscreen.plist"] retain];
+		if (!settings) {
+			settings = [[[NSDictionary alloc] init] retain];
+		}
 	}
 	return self;
 }
 
 - (void)dealloc
 {
-	CFRelease(_surface);
-	_surface = NULL;
+	if (_surface) {
+		CFRelease(_surface);
+		_surface = NULL;
+	}
 
 	dispatch_release(_videoQueue);
 	_videoQueue = NULL;
@@ -102,6 +146,9 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 	[_pixelBufferAdaptor release];
 	_pixelBufferAdaptor = nil;
 
+	[settings release];
+	settings = nil;
+
 	[super dealloc];
 }
 
@@ -112,7 +159,9 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 		[self _setupVideoContext]; // this must be done before _setupVideoAndStartRecording
 	_recordStartDate = [[NSDate date] retain];
 
-	[self _setupAudio];
+	if ([self.recordAudio boolValue] == YES) {
+		[self _setupAudio];
+	}
 	[self _setupVideoAndStartRecording];
 }
 
@@ -144,13 +193,33 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 	}
 
 	// Set the number of audio channels, using defaults if necessary.
-	NSNumber *audioChannels = (self.numberOfAudioChannels ? self.numberOfAudioChannels : @2);
+	NSNumber *audioChannels = (self.numberOfAudioChannels ? self.numberOfAudioChannels : @1);
 	NSNumber *sampleRate	= (self.audioSampleRate	   ? self.audioSampleRate	   : @44100.f);
+	NSNumber *audioBitRate  = ([settings objectForKey:@"audioBitRate"] ?: @64000);
 
-	NSDictionary *audioSettings = @{
-									AVNumberOfChannelsKey : (audioChannels ? audioChannels : @2),
-									AVSampleRateKey	   : (sampleRate	? sampleRate	: @44100.0f)
-									};
+	NSDictionary *audioSettings;
+	if ([self.videoFormat intValue] == 2) {
+		audioSettings = @{
+						AVNumberOfChannelsKey : (audioChannels ? audioChannels : @1),
+						AVSampleRateKey	   : (sampleRate	? sampleRate	: @44100.0f)
+						};
+	} else {
+		AudioChannelLayout acl = {0};
+		if ([audioChannels intValue] == 1) {
+			acl.mChannelLayoutTag = kAudioChannelLayoutTag_Mono;
+		} else {
+			acl.mChannelLayoutTag = kAudioChannelLayoutTag_Stereo;
+		}
+		NSData *aclData = [NSData dataWithBytes:&acl length: sizeof(acl)];
+
+		audioSettings = @{
+						AVFormatIDKey		   :   @(kAudioFormatMPEG4AAC),
+						AVNumberOfChannelsKey   :   (audioChannels ? audioChannels : @1),
+						AVSampleRateKey		 :   (sampleRate	? sampleRate	: @44100.0f),
+						AVEncoderBitRateKey	 :   (audioBitRate  ? audioBitRate  : @64000),
+						AVChannelLayoutKey	  :   aclData
+						};
+		}
 
 
 	// Initialize the audio recorder
@@ -247,7 +316,7 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 	}
 
 	// Lock the surface from other threads
-	static NSMutableArray * buffers = nil;
+	static NSMutableArray *buffers = nil;
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		buffers = [[NSMutableArray alloc] init];
@@ -337,9 +406,6 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 	// 4 Bytes per pixel
 	int bytesPerElement = 4;
 
-	// Bytes per row
-	_bytesPerRow = (bytesPerElement * _width);
-
 	// Properties include: SurfaceIsGlobal, BytesPerElement, BytesPerRow, SurfaceWidth, SurfaceHeight, PixelFormat, SurfaceAllocSize (space for the entire surface)
 	NSDictionary *properties = [NSDictionary dictionaryWithObjectsAndKeys:
 								[NSNumber numberWithBool:YES], kIOSurfaceIsGlobal,
@@ -373,6 +439,11 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 		_height = screenRect.size.width * scale;
 	}
 
+	if (_width % 2 != 0) {
+		_width -= 1;
+	}
+
+
 	NSAssert((self.videoOutPath != nil) , @"A valid videoOutPath must be set before the recording starts!");
 
 	NSError *error = nil;
@@ -393,21 +464,54 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 
 	// Setup AverageBitRate, FrameInterval, and ProfileLevel (Compression Properties)
 	NSMutableDictionary * compressionProperties = [NSMutableDictionary dictionary];
-	[compressionProperties setObject: [NSNumber numberWithInt: _kbps * 1000] forKey: AVVideoAverageBitRateKey];
-	[compressionProperties setObject: [NSNumber numberWithInt: _fps] forKey: AVVideoMaxKeyFrameIntervalKey];
-	[compressionProperties setObject: AVVideoProfileLevelH264Main41 forKey: AVVideoProfileLevelKey];
+	if ([settings objectForKey:@"fps"]) {
+		_fps = [[settings objectForKey:@"fps"] intValue];
+	}
+
+	if ([self.videoFormat intValue] == 2) {
+		[compressionProperties setObject: [NSNumber numberWithFloat: 0.85] forKey: AVVideoQualityKey];
+	} else {
+		if ([settings objectForKey:@"bitrate"]) {
+			_kbps = [[settings objectForKey:@"bitrate"] intValue];
+			if (_kbps <= 0) _kbps = 5000;
+		}
+
+		[compressionProperties setObject: [NSNumber numberWithInt: _fps] forKey: AVVideoMaxKeyFrameIntervalKey];
+		[compressionProperties setObject: [NSNumber numberWithInt: _kbps * 1000] forKey: AVVideoAverageBitRateKey];
+		if ([settings objectForKey:@"h264ProfileAndLevel"]) {
+			if ([[settings objectForKey:@"h264ProfileAndLevel"] intValue] == 1) {
+				[compressionProperties setObject: AVVideoProfileLevelH264Main31 forKey: AVVideoProfileLevelKey];
+			} else if ([[settings objectForKey:@"h264ProfileAndLevel"] intValue] == 2) {
+				[compressionProperties setObject: AVVideoProfileLevelH264Baseline41 forKey: AVVideoProfileLevelKey];
+			} else if ([[settings objectForKey:@"h264ProfileAndLevel"] intValue] == 3) {
+				[compressionProperties setObject: AVVideoProfileLevelH264Baseline31 forKey: AVVideoProfileLevelKey];
+			} else {
+				[compressionProperties setObject: AVVideoProfileLevelH264Main41 forKey: AVVideoProfileLevelKey];
+			}
+		} else {
+			[compressionProperties setObject: AVVideoProfileLevelH264Main41 forKey: AVVideoProfileLevelKey];
+		}
+	}
 
 	// Setup output settings, Codec, Width, Height, Compression
 	int videowidth = _width;
 	int videoheight = _height;
-	if ([[NSUserDefaults standardUserDefaults] objectForKey:@"vidsize"]) {
-		if (![[[NSUserDefaults standardUserDefaults] objectForKey:@"vidsize"] boolValue]){
-			videowidth /= 2; //If it's set to half-size, divide both by 2.
-			videoheight /= 2;
+	if ([settings objectForKey:@"vidsize"]) {
+		if ([[settings objectForKey:@"vidsize"] intValue] == 0) {
+			videowidth *= 0.50; //If it's set to half-size, divide both by 2.
+			videoheight *= 0.50;
+		} else if ([[settings objectForKey:@"vidsize"] intValue] == 2) {
+			videowidth *= 0.75; //If it's set to half-size, divide both by 2.
+			videoheight *= 0.75;
 		}
 	}
+
+	if (videowidth % 2 != 0) {
+		videowidth -= 1;
+	}
+
 	NSMutableDictionary *outputSettings = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-										   AVVideoCodecH264, AVVideoCodecKey,
+										   [self.videoFormat intValue] == 2 ? AVVideoCodecJPEG : AVVideoCodecH264, AVVideoCodecKey,
 										   [NSNumber numberWithInt:videowidth], AVVideoWidthKey,
 										   [NSNumber numberWithInt:videoheight], AVVideoHeightKey,
 										   compressionProperties, AVVideoCompressionPropertiesKey,
@@ -432,6 +536,20 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 									  [NSNumber numberWithInt:_height], kCVPixelBufferHeightKey,
 									  kCFAllocatorDefault, kCVPixelBufferMemoryAllocatorKey,
 									  nil];
+
+
+	// 4 Bytes per pixel
+	int bytesPerElement = 4;
+
+	CVPixelBufferRef tmp = NULL;
+	CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, _width, _height, kCVPixelFormatType_32BGRA, (CFDictionaryRef)bufferAttributes, &tmp);
+	if (status == kCVReturnSuccess) {
+		_bytesPerRow = CVPixelBufferGetBytesPerRow(tmp);
+		CVPixelBufferRelease(tmp);
+	} else {
+		// Bytes per row
+		_bytesPerRow = (bytesPerElement * roundUpToMultiple(_width, 16));
+	}
 
 	// Get AVAssetWriterInputPixelBufferAdaptor with the buffer attributes
 	_pixelBufferAdaptor = [AVAssetWriterInputPixelBufferAdaptor assetWriterInputPixelBufferAdaptorWithAssetWriterInput:_videoWriterInput
@@ -468,9 +586,11 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 	_pixelBufferAdaptor = nil;
 
 	// Stop the audio recording
-	[_audioRecorder stop];
-	[_audioRecorder release];
-	_audioRecorder = nil;
+	if ([self.recordAudio boolValue] == YES) {
+		[_audioRecorder stop];
+		[_audioRecorder release];
+		_audioRecorder = nil;
+	}
 
 	[_recordStartDate release];
 	_recordStartDate = nil;
@@ -480,9 +600,8 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 
 - (void)addAudioTrackToRecording {
 	double degrees = 0.0;
-	NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-	if ([prefs objectForKey:@"vidorientation"])
-		degrees = [[prefs objectForKey:@"vidorientation"] doubleValue];
+	if ([settings objectForKey:@"vidorientation"])
+		degrees = [[settings objectForKey:@"vidorientation"] doubleValue];
 
 	NSString *videoPath = self.videoOutPath;
 	NSString *audioPath = self.audioOutPath;
@@ -502,7 +621,7 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 			assetVideoTrack = assetArray[0];
 	}
 
-	if ([[NSFileManager defaultManager] fileExistsAtPath:audioPath] && [prefs boolForKey:@"recordaudio"]) {
+	if ([[NSFileManager defaultManager] fileExistsAtPath:audioPath] && [self.recordAudio boolValue] == YES) {
 		NSArray *assetArray = [audioAsset tracksWithMediaType:AVMediaTypeAudio];
 		if ([assetArray count] > 0)
 			assetAudioTrack = assetArray[0];
@@ -522,12 +641,14 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
 		[compositionAudioTrack insertTimeRange:CMTimeRangeMake(kCMTimeZero, audioAsset.duration) ofTrack:assetAudioTrack atTime:kCMTimeZero error:nil];
 	}
 
-	NSString *exportPath = [videoPath substringWithRange:NSMakeRange(0, videoPath.length - 4)];
-	exportPath = [NSString stringWithFormat:@"%@.mov", exportPath];
+	NSString *exportPath = [videoPath substringWithRange:NSMakeRange(0, videoPath.length - 8)];
+	exportPath = [NSString stringWithFormat:@"%@.%@", exportPath, [self.videoFormat intValue] == 1 ? @"mp4" : @"mov"];
+
 	NSURL *exportURL = [NSURL fileURLWithPath:exportPath];
 
 	AVAssetExportSession *exportSession = [[AVAssetExportSession alloc] initWithAsset:mixComposition presetName:AVAssetExportPresetPassthrough];
-	[exportSession setOutputFileType:AVFileTypeQuickTimeMovie];
+	[exportSession setOutputFileType:([self.videoFormat intValue] == 1 ? AVFileTypeMPEG4 : AVFileTypeQuickTimeMovie)];
+
 	[exportSession setOutputURL:exportURL];
 	[exportSession setShouldOptimizeForNetworkUse:NO];
 

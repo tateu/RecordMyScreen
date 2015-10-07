@@ -1,9 +1,9 @@
 Package: org.coolstar.recordmyscreentweak
 Name: RecordMyScreen (Tweak)
 Depends: mobilesubstrate
-Version: 0.0.1
+Version: 3.1-5~beta5
 Architecture: iphoneos-arm
-Description: An awesome MobileSubstrate tweak!
+Description: free, open source screen recorder
 Maintainer: RecordMyScreen Project
 Author: RecordMyScreen Project
 Section: Tweaks

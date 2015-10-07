@@ -20,8 +20,11 @@
 @property(nonatomic, copy) NSString *videoOutPath;
 @property(nonatomic, copy) NSString *audioOutPath;
 
+@property(nonatomic, copy) NSNumber *audioBitRate;
 @property(nonatomic, copy) NSNumber *audioSampleRate;
 @property(nonatomic, copy) NSNumber *numberOfAudioChannels;
+@property(nonatomic, copy) NSNumber *recordAudio;
+@property(nonatomic, copy) NSNumber *videoFormat;
 
 @property(nonatomic, assign) id<CSScreenRecorderDelegate> delegate;
 

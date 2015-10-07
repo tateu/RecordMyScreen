@@ -26,31 +26,44 @@ typedef void(^RecordMyScreenCallback)(void);
 		queryWindow.onConfirmation = ^{
 			_screenRecorder = [[CSScreenRecorder alloc] init];
 
-			NSString *videoPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/video.mp4"];
-			//if (![[[NSUserDefaults standardUserDefaults] objectForKey:@"record"] boolValue]) {
-				NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-				[dateFormatter setDateFormat:@"MM:dd:yyyy h:mm:ss a"];
-				NSString *date = [dateFormatter stringFromDate:[NSDate date]];
-				NSString *outName = [NSString stringWithFormat:@"Documents/%@.mp4",date];
-				videoPath = [NSHomeDirectory() stringByAppendingPathComponent:outName];
-				[dateFormatter release];
-			//}
+			NSDictionary *settings = [[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/org.coolstar.recordmyscreen.plist"];
+			if (!settings) {
+				settings = [[NSDictionary alloc] init];
+			}
 
-			// Set the number of audio channels
-			NSNumber *audioChannels = [[NSUserDefaults standardUserDefaults] objectForKey:@"channels"];
-			NSNumber *sampleRate = [[NSUserDefaults standardUserDefaults] objectForKey:@"samplerate"];
-			NSString *audioPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/audio.caf"];
+			NSNumber *audioChannels = [settings objectForKey:@"channels"] ?: @(1);
+			NSNumber *sampleRate = [settings objectForKey:@"samplerate"] ?: @(44100);
+			NSNumber *audioBitRate = [settings objectForKey:@"audioBitRate"] ?: @(96000);
+			NSNumber *recordAudio = [settings objectForKey:@"recordaudio"] ?: @(NO);
+			NSNumber *videoFormat = [settings objectForKey:@"vidformat"] ?: @(0);
+
+			NSString *videoPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/video.mp4"];
+			NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+			[dateFormatter setDateFormat:@"yyyyMMdd_HHmmss"];
+			NSString *date = [dateFormatter stringFromDate:[NSDate date]];
+			NSString *outName = [NSString stringWithFormat:@"Documents/%@_tmp.%@",date, [videoFormat intValue] == 2 ? @"mov" : @"mp4"];
+			videoPath = [NSHomeDirectory() stringByAppendingPathComponent:outName];
+			NSString *audioPath = [NSHomeDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"Documents/%@_tmp.%@",date, [videoFormat intValue] == 2 ? @"caf" : @"aac"]];
+			[dateFormatter release];
 
 			_screenRecorder.videoOutPath = videoPath;
 			_screenRecorder.audioOutPath = audioPath;
 			_screenRecorder.numberOfAudioChannels = audioChannels;
 			_screenRecorder.audioSampleRate = sampleRate;
-			[_screenRecorder startRecordingScreen];
+			_screenRecorder.audioBitRate = audioBitRate;
+			_screenRecorder.videoFormat = videoFormat;
+			_screenRecorder.recordAudio = recordAudio;
+			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+				[_screenRecorder startRecordingScreen];
+			});
+			[settings release];
 		};
 	} else {
 		[_screenRecorder stopRecordingScreen];
 		CSRecordCompletionAlert *completionAlert = [[CSRecordCompletionAlert alloc] initWithFrame:CGRectMake(0,0,320,150)];
 		completionAlert.center = CGPointMake([[UIScreen mainScreen] bounds].size.width/2, [[UIScreen mainScreen] bounds].size.height/2);
+		[_screenRecorder release];
+		_screenRecorder = nil;
 	}
 	[event setHandled:YES];
 }
@@ -59,9 +72,9 @@ typedef void(^RecordMyScreenCallback)(void);
 {
 }
 
-- (void)screenRecorderDidStopRecording:(CSScreenRecorder *)recorder {
-	[_screenRecorder release];
-	_screenRecorder = nil;
-}
+// - (void)screenRecorderDidStopRecording:(CSScreenRecorder *)recorder {
+// 	[_screenRecorder release];
+// 	_screenRecorder = nil;
+// }
 
 @end;
