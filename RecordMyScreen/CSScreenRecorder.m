@@ -19,10 +19,7 @@
 
 void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef surface, int x, int y);
 
-CGFloat degreesToRadians (CGFloat deg)
-{
-	return deg * (M_PI / 180.0f);
-}
+#define degreesToRadians(degrees) ((degrees) / 180.0 * M_PI)
 
 int roundDownToMultiple(int numberToRound, int multiple)
 {
@@ -56,10 +53,6 @@ int roundUpToMultiple(int numberToRound, int multiple)
 {
 @private
 	BOOL				_isRecording;
-	int				 _kbps;
-	int				 _fps;
-
-	NSDictionary		*settings;
 
 	//surface
 	IOSurfaceRef		_surface;
@@ -99,15 +92,6 @@ int roundUpToMultiple(int numberToRound, int multiple)
 
 		//video queue
 		_videoQueue = dispatch_queue_create("video_queue", DISPATCH_QUEUE_SERIAL);
-		//frame rate
-		_fps = 24;
-		//encoding kbps
-		_kbps = 5000;
-
-		settings = [[[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/org.coolstar.recordmyscreen.plist"] retain];
-		if (!settings) {
-			settings = [[[NSDictionary alloc] init] retain];
-		}
 	}
 	return self;
 }
@@ -145,9 +129,6 @@ int roundUpToMultiple(int numberToRound, int multiple)
 
 	[_pixelBufferAdaptor release];
 	_pixelBufferAdaptor = nil;
-
-	[settings release];
-	settings = nil;
 
 	[super dealloc];
 }
@@ -195,7 +176,7 @@ int roundUpToMultiple(int numberToRound, int multiple)
 	// Set the number of audio channels, using defaults if necessary.
 	NSNumber *audioChannels = (self.numberOfAudioChannels ? self.numberOfAudioChannels : @1);
 	NSNumber *sampleRate	= (self.audioSampleRate	   ? self.audioSampleRate	   : @44100.f);
-	NSNumber *audioBitRate  = ([settings objectForKey:@"audioBitRate"] ?: @64000);
+	NSNumber *audioBitRate  = (self.audioBitRate	   ? self.audioBitRate	   : @64000);
 
 	NSDictionary *audioSettings;
 	if ([self.videoFormat intValue] == 2) {
@@ -257,7 +238,7 @@ int roundUpToMultiple(int numberToRound, int multiple)
 
 	//capture loop (In another thread)
 	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-		int targetFPS = _fps;
+		int targetFPS = [self.fps intValue];
 		int msBeforeNextCapture = 1000 / targetFPS;
 
 		struct timeval lastCapture, currentTime, startTime;
@@ -347,7 +328,7 @@ int roundUpToMultiple(int numberToRound, int multiple)
 	dispatch_async(dispatch_get_main_queue(), ^{
 
 		if(!_pixelBufferAdaptor.pixelBufferPool){
-			NSLog(@"skipping frame: %lld", frameTime.value);
+			NSLog(@"RecordMyScreen skipping frame: %lld", frameTime.value);
 			//free(rawData);
 			@synchronized(buffers) {
 				//[buffers addObject:rawDataObj];
@@ -439,10 +420,9 @@ int roundUpToMultiple(int numberToRound, int multiple)
 		_height = screenRect.size.width * scale;
 	}
 
-	if (_width % 2 != 0) {
-		_width -= 1;
-	}
-
+	// if (_width % 2 != 0) {
+	// 	_width -= 1;
+	// }
 
 	NSAssert((self.videoOutPath != nil) , @"A valid videoOutPath must be set before the recording starts!");
 
@@ -464,26 +444,19 @@ int roundUpToMultiple(int numberToRound, int multiple)
 
 	// Setup AverageBitRate, FrameInterval, and ProfileLevel (Compression Properties)
 	NSMutableDictionary * compressionProperties = [NSMutableDictionary dictionary];
-	if ([settings objectForKey:@"fps"]) {
-		_fps = [[settings objectForKey:@"fps"] intValue];
-	}
+
 
 	if ([self.videoFormat intValue] == 2) {
 		[compressionProperties setObject: [NSNumber numberWithFloat: 0.85] forKey: AVVideoQualityKey];
 	} else {
-		if ([settings objectForKey:@"bitrate"]) {
-			_kbps = [[settings objectForKey:@"bitrate"] intValue];
-			if (_kbps <= 0) _kbps = 5000;
-		}
-
-		[compressionProperties setObject: [NSNumber numberWithInt: _fps] forKey: AVVideoMaxKeyFrameIntervalKey];
-		[compressionProperties setObject: [NSNumber numberWithInt: _kbps * 1000] forKey: AVVideoAverageBitRateKey];
-		if ([settings objectForKey:@"h264ProfileAndLevel"]) {
-			if ([[settings objectForKey:@"h264ProfileAndLevel"] intValue] == 1) {
+		[compressionProperties setObject: self.fps forKey: AVVideoMaxKeyFrameIntervalKey];
+		[compressionProperties setObject: [NSNumber numberWithInt: [self.kbps intValue] * 1000] forKey: AVVideoAverageBitRateKey];
+		if (self.h264ProfileAndLevel) {
+			if ([self.h264ProfileAndLevel intValue] == 1) {
 				[compressionProperties setObject: AVVideoProfileLevelH264Main31 forKey: AVVideoProfileLevelKey];
-			} else if ([[settings objectForKey:@"h264ProfileAndLevel"] intValue] == 2) {
+			} else if ([self.h264ProfileAndLevel intValue] == 2) {
 				[compressionProperties setObject: AVVideoProfileLevelH264Baseline41 forKey: AVVideoProfileLevelKey];
-			} else if ([[settings objectForKey:@"h264ProfileAndLevel"] intValue] == 3) {
+			} else if ([self.h264ProfileAndLevel intValue] == 3) {
 				[compressionProperties setObject: AVVideoProfileLevelH264Baseline31 forKey: AVVideoProfileLevelKey];
 			} else {
 				[compressionProperties setObject: AVVideoProfileLevelH264Main41 forKey: AVVideoProfileLevelKey];
@@ -496,11 +469,11 @@ int roundUpToMultiple(int numberToRound, int multiple)
 	// Setup output settings, Codec, Width, Height, Compression
 	int videowidth = _width;
 	int videoheight = _height;
-	if ([settings objectForKey:@"vidsize"]) {
-		if ([[settings objectForKey:@"vidsize"] intValue] == 0) {
+	if (self.vidsize) {
+		if ([self.vidsize intValue] == 0) {
 			videowidth *= 0.50; //If it's set to half-size, divide both by 2.
 			videoheight *= 0.50;
-		} else if ([[settings objectForKey:@"vidsize"] intValue] == 2) {
+		} else if ([self.vidsize intValue] == 2) {
 			videowidth *= 0.75; //If it's set to half-size, divide both by 2.
 			videoheight *= 0.75;
 		}
@@ -508,6 +481,10 @@ int roundUpToMultiple(int numberToRound, int multiple)
 
 	if (videowidth % 2 != 0) {
 		videowidth -= 1;
+	}
+
+	if (videoheight % 2 != 0) {
+		videoheight -= 1;
 	}
 
 	NSMutableDictionary *outputSettings = [NSMutableDictionary dictionaryWithObjectsAndKeys:
@@ -546,9 +523,11 @@ int roundUpToMultiple(int numberToRound, int multiple)
 	if (status == kCVReturnSuccess) {
 		_bytesPerRow = CVPixelBufferGetBytesPerRow(tmp);
 		CVPixelBufferRelease(tmp);
+		NSLog(@"RecordMyScreen _bytesPerRow 1 %d %dx%d - %dx%d", _bytesPerRow, _width, _height, videowidth, videoheight);
 	} else {
 		// Bytes per row
 		_bytesPerRow = (bytesPerElement * roundUpToMultiple(_width, 16));
+		NSLog(@"RecordMyScreen _bytesPerRow 2 %d %dx%d - %dx%d", _bytesPerRow, _width, _height, videowidth, videoheight);
 	}
 
 	// Get AVAssetWriterInputPixelBufferAdaptor with the buffer attributes
@@ -557,8 +536,8 @@ int roundUpToMultiple(int numberToRound, int multiple)
 	[_pixelBufferAdaptor retain];
 
 	//FPS
-	_videoWriterInput.mediaTimeScale = _fps;
-	_videoWriter.movieTimeScale = _fps;
+	_videoWriterInput.mediaTimeScale = [self.fps intValue];
+	_videoWriter.movieTimeScale = [self.fps intValue];
 
 	//Start a session:
 	[_videoWriterInput setExpectsMediaDataInRealTime:YES];
@@ -600,8 +579,8 @@ int roundUpToMultiple(int numberToRound, int multiple)
 
 - (void)addAudioTrackToRecording {
 	double degrees = 0.0;
-	if ([settings objectForKey:@"vidorientation"])
-		degrees = [[settings objectForKey:@"vidorientation"] doubleValue];
+	if (self.vidorientation)
+		degrees = [self.vidorientation doubleValue];
 
 	NSString *videoPath = self.videoOutPath;
 	NSString *audioPath = self.audioOutPath;
@@ -665,13 +644,13 @@ int roundUpToMultiple(int numberToRound, int multiple)
 			case AVAssetExportSessionStatusFailed:
 				[videoAsset release];
 				[audioAsset release];
-				NSLog(@"Failed: %@", exportSession.error);
+				NSLog(@"RecordMyScreen AVAssetExportSessionStatusFailed: %@", exportSession.error);
 				break;
 
 			case AVAssetExportSessionStatusCancelled:
 				[videoAsset release];
 				[audioAsset release];
-				NSLog(@"Canceled: %@", exportSession.error);
+				NSLog(@"RecordMyScreen AVAssetExportSessionStatusCancelled: %@", exportSession.error);
 				break;
 
 			default:

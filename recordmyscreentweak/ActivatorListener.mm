@@ -26,24 +26,25 @@ typedef void(^RecordMyScreenCallback)(void);
 		queryWindow.onConfirmation = ^{
 			_screenRecorder = [[CSScreenRecorder alloc] init];
 
-			NSDictionary *settings = [[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/org.coolstar.recordmyscreen.plist"];
-			if (!settings) {
-				settings = [[NSDictionary alloc] init];
-			}
+			CFPreferencesAppSynchronize(CFSTR("org.coolstar.recordmyscreen"));
+			NSNumber *audioChannels = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"channels"] ?: @(1);
+			NSNumber *sampleRate = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"samplerate"] ?: @(44100);
+			NSNumber *audioBitRate = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"audioBitRate"] ?: @(96000);
+			NSNumber *recordAudio = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"recordaudio"] ?: @(NO);
+			NSNumber *videoFormat = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"vidformat"] ?: @(0);
 
-			NSNumber *audioChannels = [settings objectForKey:@"channels"] ?: @(1);
-			NSNumber *sampleRate = [settings objectForKey:@"samplerate"] ?: @(44100);
-			NSNumber *audioBitRate = [settings objectForKey:@"audioBitRate"] ?: @(96000);
-			NSNumber *recordAudio = [settings objectForKey:@"recordaudio"] ?: @(NO);
-			NSNumber *videoFormat = [settings objectForKey:@"vidformat"] ?: @(0);
+			NSNumber *fps = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"fps"] ?: @(24);
+			NSNumber *kbps = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"bitrate"] ?: @(5000);
+			NSNumber *h264ProfileAndLevel = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"h264ProfileAndLevel"] ?: @(0);
+			NSNumber *vidsize = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"vidsize"] ?: @(1);
+			NSNumber *vidorientation = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:@"org.coolstar.recordmyscreen"] objectForKey:@"vidorientation"] ?: @(0);
 
-			NSString *videoPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/video.mp4"];
 			NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
 			[dateFormatter setDateFormat:@"yyyyMMdd_HHmmss"];
 			NSString *date = [dateFormatter stringFromDate:[NSDate date]];
-			NSString *outName = [NSString stringWithFormat:@"Documents/%@_tmp.%@",date, [videoFormat intValue] == 2 ? @"mov" : @"mp4"];
-			videoPath = [NSHomeDirectory() stringByAppendingPathComponent:outName];
-			NSString *audioPath = [NSHomeDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"Documents/%@_tmp.%@",date, [videoFormat intValue] == 2 ? @"caf" : @"aac"]];
+			NSString *outName = [NSString stringWithFormat:@"Documents/%@_tmp.%@", date, [videoFormat intValue] == 2 ? @"mov" : @"mp4"];
+			NSString *videoPath = [NSHomeDirectory() stringByAppendingPathComponent:outName];
+			NSString *audioPath = [NSHomeDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"Documents/%@_tmp.%@", date, [videoFormat intValue] == 2 ? @"caf" : @"aac"]];
 			[dateFormatter release];
 
 			_screenRecorder.videoOutPath = videoPath;
@@ -53,10 +54,14 @@ typedef void(^RecordMyScreenCallback)(void);
 			_screenRecorder.audioBitRate = audioBitRate;
 			_screenRecorder.videoFormat = videoFormat;
 			_screenRecorder.recordAudio = recordAudio;
+			_screenRecorder.fps = fps;
+			_screenRecorder.kbps = kbps;
+			_screenRecorder.h264ProfileAndLevel = h264ProfileAndLevel;
+			_screenRecorder.vidsize = vidsize;
+			_screenRecorder.vidorientation = vidorientation;
 			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
 				[_screenRecorder startRecordingScreen];
 			});
-			[settings release];
 		};
 	} else {
 		[_screenRecorder stopRecordingScreen];

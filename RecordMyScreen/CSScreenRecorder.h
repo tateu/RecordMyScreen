@@ -26,6 +26,12 @@
 @property(nonatomic, copy) NSNumber *recordAudio;
 @property(nonatomic, copy) NSNumber *videoFormat;
 
+@property(nonatomic, copy) NSNumber *fps;
+@property(nonatomic, copy) NSNumber *kbps;
+@property(nonatomic, copy) NSNumber *h264ProfileAndLevel;
+@property(nonatomic, copy) NSNumber *vidsize;
+@property(nonatomic, copy) NSNumber *vidorientation;
+
 @property(nonatomic, assign) id<CSScreenRecorderDelegate> delegate;
 
 - (void)startRecordingScreen;
